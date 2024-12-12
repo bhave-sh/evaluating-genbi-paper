@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pandasai = "*"
+numpy = "==1.26.4"
+pandas = "*"
+seaborn = "*"
+urllib3 = "==1.26.6"
+pyyaml = "*"
+openpyxl = "*"
+python-dotenv = "*"
+langchain-groq = "*"
+pydantic = "==2.10.1"
+chainlit = "*"
+httpx = "==0.27.2"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
+python_full_version = "3.9.6"
