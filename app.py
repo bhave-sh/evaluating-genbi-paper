@@ -1,14 +1,17 @@
+# Import necessary libraries
 import os
 import pandas as pd
 from pandasai.connectors import PandasConnector
 from pandasai import SmartDataframe
-from pandasai.llm import BambooLLM,OpenAI
+from pandasai.llm import BambooLLM, OpenAI
 from langchain_groq.chat_models import ChatGroq 
 import chainlit as cl
 
+# Load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv()
 
+# Define a dictionary to store field descriptions
 global field_descriptions
 field_descriptions = {
 'sales_order_number':'Unique identifier for each sales order.',
@@ -47,49 +50,70 @@ field_descriptions = {
 'target_date_year':'The year for the target date (e.g., 2022).',
 }
 
+# Define a function to handle the start of a chat
 @cl.on_chat_start
 async def start():
+    # Initialize the user session with a message history
     cl.user_session.set(
         "message_history",
         [{"role": "system", "content": "You are a helpful assistant."}],
     )
 
-
+# Define a function to handle incoming messages
 @cl.on_message
 async def main(message: cl.Message):
-    # Retrieve message history
+    # Retrieve the message history from the user session
     message_history = cl.user_session.get("message_history")
+    
+    # Add the incoming message to the message history
     message_history.append({"role": "user", "content": message.content})
 
+    # Load the sales data from an Excel file
     df = pd.read_excel("adventureworks_2022_denormalized.xlsx")
+
+    # Create a Pandas connector with the loaded data and field descriptions
     connector = PandasConnector({"original_df": df}, field_descriptions=field_descriptions)
+
+    # Define the models to use for the chat
     llama = "llama3-70b-8192"
     mistral = "mixtral-8x7b-32768"
     oai = "OpenAI"
     model = llama
 
-    if model in ("llama3-70b-8192","mixtral-8x7b-32768") :
-        llm = ChatGroq(model=model,
-                   api_key = os.environ["GROQ_API_KEY"])
+    # Create a language model based on the selected model
+    if model in ("llama3-70b-8192", "mixtral-8x7b-32768"):
+        llm = ChatGroq(model=model, api_key=os.environ["GROQ_API_KEY"])
     elif model == "OpenAI":
         llm = OpenAI()
     else:
-        model="BambooLLM"
+        model = "BambooLLM"
         llm = BambooLLM()
-    intro_message = "Model = "+model
+
+    # Send an intro message with the selected model
+    intro_message = "Model = " + model
     await cl.Message(content=intro_message).send()
-    df = SmartDataframe(connector, config={"verbose": True,
-                                    "enable_cache": False,
-                                    "custom_whitelisted_dependencies":["collections"],
-                                    "llm": llm})
-    
+
+    # Create a SmartDataframe with the connector and language model
+    df = SmartDataframe(
+        connector, 
+        config={
+            "verbose": True,
+            "enable_cache": False,
+            "custom_whitelisted_dependencies": ["collections"],
+            "llm": llm
+        }
+    )
+
+    # Get the question from the incoming message
     question = message.content
+
+    # Get the response from the SmartDataframe
     response = df.chat(question)
+
+    # Send the response as a message
     msg = cl.Message(content=response)
-    
     await msg.send()
 
-    # Update message history and send final message
+    # Update the message history with the response
     message_history.append({"role": "assistant", "content": msg.content})
     await msg.update()
-
